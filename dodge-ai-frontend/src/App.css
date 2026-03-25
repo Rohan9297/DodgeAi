@@ -1,0 +1,39 @@
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #0f1117;
+}
+
+.header {
+  padding: 12px 20px;
+  background: #1a1d2e;
+  border-bottom: 1px solid #2d3154;
+  flex-shrink: 0;
+}
+
+.header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #7c8cf8;
+  letter-spacing: 0.5px;
+}
+
+.main-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.graph-section {
+  flex: 1;
+  border-right: 1px solid #2d3154;
+  overflow: hidden;
+}
+
+.chat-section {
+  width: 400px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
