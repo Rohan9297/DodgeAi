@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from 'react'
 import CytoscapeComponent from 'react-cytoscapejs'
 import axios from 'axios'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+
 const nodeColors = {
   Customer: '#10b981',
   SalesOrder: '#7c8cf8',
@@ -89,7 +91,7 @@ export default function GraphView({ onNodeSelect }) {
   const cyRef = useRef(null)
 
   useEffect(() => {
-    axios.get('http://localhost:8080/api/graph')
+    axios.get(`${API_BASE_URL}/api/graph`)
       .then(res => {
         const { nodes, edges } = res.data
         setElements([...nodes, ...edges])

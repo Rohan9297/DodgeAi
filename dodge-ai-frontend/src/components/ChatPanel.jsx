@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import axios from 'axios'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+
 export default function ChatPanel({ selectedNode }) {
   const [messages, setMessages] = useState([
     {
@@ -38,7 +40,7 @@ export default function ChatPanel({ selectedNode }) {
     setLoading(true)
 
     try {
-      const res = await axios.post('http://localhost:8080/api/query', { question })
+      const res = await axios.post(`${API_BASE_URL}/api/query`, { question })
       const { answer, sql, relevant } = res.data
       setMessages(prev => [...prev, {
         role: 'assistant',
