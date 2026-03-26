@@ -138,7 +138,7 @@ Frontend env:
 ## AI Coding Session Logs
 Add your links here before submission:
 - Codex/ChatGPT session log: `ADD_LINK_HERE`
-- Claude/Cursor/Copilot logs (if used): `ADD_LINK_HERE`
+- Claude logs: https://claude.ai/share/26dfdff8-078e-459a-9036-b3261a852323
 
 ## Future Improvements
 - Explicit node expand/collapse interaction
