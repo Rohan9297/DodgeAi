@@ -4,16 +4,35 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.http.*;
 
 import java.util.*;
-import java.util.regex.Pattern;
 
 @Service
 @Slf4j
 public class LLMService {
+
+   private static final Set<String> DATASET_CONCEPTS = Set.of(
+         "sales", "sale", "sales order", "sales orders", "order", "orders",
+         "delivery", "deliveries", "billing", "bill", "billed",
+         "invoice", "invoices", "payment", "payments",
+         "journal", "journal entry", "journal entries",
+         "customer", "customers", "business partner", "business partners",
+         "product", "products", "material", "materials",
+         "document", "documents", "item", "items", "flow", "flows");
+
+   private static final Set<String> ANALYSIS_INTENTS = Set.of(
+         "show", "list", "count", "find", "get", "which", "what", "how many",
+         "trace", "identify", "broken", "incomplete", "top", "highest",
+         "lowest", "status", "statuses", "linked", "associated", "total",
+         "sum", "average", "compare");
+
+   private static final Set<String> BLOCKED_SMALL_TALK = Set.of(
+         "hi", "hey", "hello", "yo", "hola", "thanks", "thank you",
+         "good morning", "good afternoon", "good evening", "how are you",
+         "who are you", "tell me a joke");
 
    @Value("${gemini.api.key}")
    private String apiKey;
@@ -147,21 +166,8 @@ public class LLMService {
 
       String q = normalize(question);
 
-      String[] businessKeywords = {
-            "sales", "sale", "order", "orders", "delivery", "deliveries",
-            "delivered", "billing", "billed", "bill", "invoice", "invoices",
-            "payment", "payments", "customer", "customers", "product", "products",
-            "material", "materials", "shipment", "shipments", "dispatch",
-            "journal", "journals", "accounting", "amount", "amounts", "quantity",
-            "quantities", "partner", "partners", "document", "documents", "item",
-            "items", "flow", "flows", "trace", "broken", "incomplete", "mismatch",
-            "reconcile", "status", "date", "count", "total"
-      };
-
-      for (String keyword : businessKeywords) {
-         if (q.contains(keyword)) {
-            return true;
-         }
+      if (BLOCKED_SMALL_TALK.contains(q)) {
+         return false;
       }
 
       String[] unrelatedKeywords = {
@@ -176,32 +182,55 @@ public class LLMService {
          }
       }
 
-      String prompt = """
-            You are a guardrail for a SAP Order-to-Cash business data system.
-            The system has data about: sales orders, deliveries, billing documents,
-            payments, customers, products, and journal entries.
+      boolean hasDatasetConcept = containsAnyPhrase(q, DATASET_CONCEPTS);
+      boolean hasAnalysisIntent = containsAnyPhrase(q, ANALYSIS_INTENTS);
 
-            Question: "%s"
+      return hasDatasetConcept && hasAnalysisIntent;
+   }
 
-            Reply YES if this question is about business data, orders, deliveries,
-            invoices, payments, customers, products, or general data queries.
-            Reply NO only for completely unrelated topics like weather, cooking,
-            sports, movies, or general knowledge.
-            Reply with only YES or NO.
-            """.formatted(question);
-
-      String response = callGemini(prompt);
-      if (response == null || response.isBlank()) {
-         return true;
+   public boolean isSafeDatasetSql(String sql) {
+      if (sql == null || sql.isBlank()) {
+         return false;
       }
 
-      String normalizedResponse = normalize(response);
-      if (normalizedResponse.matches(".*\\bno\\b.*"))
+      String normalizedSql = normalizeSql(sql);
+      if (!normalizedSql.startsWith("select ")) {
          return false;
-      if (normalizedResponse.matches(".*\\byes\\b.*"))
-         return true;
+      }
 
-      return true;
+      if (normalizedSql.matches("^select\\s+1(\\s+limit\\s+\\d+)?\\s*;?$")) {
+         return false;
+      }
+
+      String[] knownTables = {
+            "sales_order_headers",
+            "sales_order_items",
+            "billing_document_headers",
+            "billing_document_items",
+            "outbound_delivery_headers",
+            "outbound_delivery_items",
+            "payments",
+            "journal_entries",
+            "business_partners",
+            "products"
+      };
+
+      for (String table : knownTables) {
+         if (normalizedSql.contains(table)) {
+            return true;
+         }
+      }
+
+      return false;
+   }
+
+   private boolean containsAnyPhrase(String text, Set<String> phrases) {
+      for (String phrase : phrases) {
+         if (text.contains(phrase)) {
+            return true;
+         }
+      }
+      return false;
    }
 
    private String normalize(String value) {
@@ -209,6 +238,12 @@ public class LLMService {
             .replace("->", " ")
             .replace('-', ' ')
             .replaceAll("[^a-z0-9\\s]", " ")
+            .replaceAll("\\s+", " ")
+            .trim();
+   }
+
+   private String normalizeSql(String value) {
+      return value.toLowerCase(Locale.ROOT)
             .replaceAll("\\s+", " ")
             .trim();
    }
